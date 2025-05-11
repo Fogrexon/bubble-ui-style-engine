@@ -1,10 +1,10 @@
-import { defineConfig, esbuildVersion } from 'vite';
+import { defineConfig } from 'vite';
 import * as path from 'node:path';
 import dtsPlugin from 'vite-plugin-dts';
 
 const libraryName = 'BubbleUIStyleEngine';
-const libraryNameLower = libraryName.toLowerCase();
-const libraryNameSnake = libraryName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+// const libraryNameLower = libraryName.toLowerCase();
+// const libraryNameSnake = libraryName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 
 export default defineConfig({
   plugins: [
@@ -33,9 +33,7 @@ export default defineConfig({
       entry: path.resolve(__dirname, 'src/index.ts'), // ライブラリのエントリーファイル
       name: libraryName, // UMDビルド時のグローバル変数名
       formats: ['es', 'umd', 'commonjs'], // ビルドするフォーマット
-      fileName: (format) => {
-        return `${format}/index.js`;
-      },
+      fileName: (format) => `${format}/index.js`,
     },
     sourcemap: true,
   },
