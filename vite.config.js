@@ -2,7 +2,7 @@ import { defineConfig, esbuildVersion } from 'vite';
 import * as path from 'node:path';
 import dtsPlugin from 'vite-plugin-dts';
 
-const libraryName = 'ViteLibraryTemplate';
+const libraryName = 'BubbleUIStyleEngine';
 const libraryNameLower = libraryName.toLowerCase();
 const libraryNameSnake = libraryName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 
