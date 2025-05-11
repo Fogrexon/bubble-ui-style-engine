@@ -1,0 +1,12 @@
+node_modules/
+.eslintrc.js
+.prettierrc
+vite.config.js
+tsconfig.json
+.github/
+.idea/
+api-docs/
+examples/
+src/
+.github/
+coverage/
