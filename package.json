@@ -1,7 +1,7 @@
 {
-  "name": "vite-library-template",
+  "name": "bubble-ui-style-engine",
   "version": "0.1.0",
-  "description": "A template for building libraries with Vite and TypeScript",
+  "description": "Library for decoding CSS-in-JS like syntax.",
   "main": "build/commonjs/src/index.js",
   "module": "build/es/src/index.js",
   "scripts": {
@@ -20,12 +20,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fogrexon/ViteLibraryTemplate.git"
+    "url": "git+https://github.com/Fogrexon/bubble-ui-style-engine.git"
   },
   "author": "Fogrexon",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Fogrexon/ViteLibraryTemplate/issues"
+    "url": "https://github.com/Fogrexon/bubble-ui-style-engine/issues"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.32.0",

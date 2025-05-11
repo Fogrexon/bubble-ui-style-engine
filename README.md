@@ -1,6 +1,6 @@
-# Vite library template
+# Bubble UI Style Engine
 
-This is a library for Pixi.js that allows you to style your pixi objects with css-in-js-like syntax.
+Library for decoding CSS-in-JS like syntax.
 
 ## Build
 
