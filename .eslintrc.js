@@ -28,7 +28,8 @@ module.exports = {
         '**/*.spec.jsx',
         '**/*.spec.ts',
         '**/*.spec.tsx',
-        './vite.config.ts',
+        './vite.config.js',
+        './eslintrc.js',
         './.storybook/**/*.{js,jsx,ts,tsx}',
       ],
       // テストファイルに対して適用するルール設定
