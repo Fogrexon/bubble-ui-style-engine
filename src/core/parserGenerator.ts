@@ -1,6 +1,6 @@
-import type { AstNode, GrammarRule } from './grammerRule.ts';
+import type { GrammarRule } from './grammerRule.ts';
 import { atomicTokenParsers } from './atomicTokenParsers.ts';
-import type { ASTElement } from './ast.ts';
+import type { ASTNode, ASTBranch } from './ast.ts';
 
 export class ParseError extends Error {
   constructor(message: string) {
@@ -10,115 +10,158 @@ export class ParseError extends Error {
   }
 }
 
-export type StyleParser = (value: string) => AstNode;
+export type StyleParser = (value: string) => ASTBranch;
 export type InternalStyleParser = (
   tokens: string[],
   currentIndex: number
-) => { ast: Record<string, ASTElement>; consumed: number };
+) => { asts: Record<string, ASTNode>; consumed: number } | null;
 
-const internalParserGenerator = (rule: GrammarRule): InternalStyleParser | null => {
+const internalParserGenerator = (rule: GrammarRule): InternalStyleParser => {
   switch (rule.type) {
-    case 'keyword':
+    case 'keyword': {
+      const keyword = rule.value;
       return (tokens, currentIndex) => {
         if (currentIndex < tokens.length) {
-          const matchedValue = atomicTokenParsers.keyword(tokens[currentIndex], rule.value);
+          const matchedValue = atomicTokenParsers.keyword(tokens[currentIndex], keyword);
           if (matchedValue !== null) {
-            return { ast: { [rule.id]: matchedValue }, consumed: 1 };
+            return { asts: { [rule.id]: matchedValue }, consumed: 1 };
           }
         }
         return null;
       };
+    }
 
-    case 'type':
+    case 'primitive': {
+      const atomicParser = atomicTokenParsers[rule.tokenType];
       return (tokens, currentIndex) => {
         if (currentIndex < tokens.length) {
-          const parsedValue = atomicTokenParsers[rule.tokenType](tokens[currentIndex]);
+          const parsedValue = atomicParser(tokens[currentIndex]);
           if (parsedValue !== null) {
-            return { ast: { [rule.id]: parsedValue }, consumed: 1 };
+            return { asts: { [rule.id]: parsedValue }, consumed: 1 };
           }
         }
         return null;
       };
+    }
 
-    case 'sequence':
+    // TODO: non-order
+
+    case 'sequence': {
+      const astPairs = rule.rules.map((element) => ({
+        id: element.id,
+        parser: internalParserGenerator(element),
+      }));
+
       return (tokens, currentIndex) => {
-        const sequenceAstParts: AstNode = {}; // シーケンス内の各要素のASTを格納
+        const sequenceAstParts: Record<string, ASTNode> = {}; // シーケンス内の各要素のASTを格納
         let totalConsumedInSequence = 0;
         let currentElementIndex = currentIndex;
-        for (let i = 0; i < rule.elements.length; i += 1) {
-          const elementRule = rule.elements[i];
-          const elementParser = internalParserGenerator(elementRule);
-          const result = elementParser(tokens, currentElementIndex);
+
+        astPairs.forEach((parserPair) => {
+          const result = parserPair.parser(tokens, currentElementIndex);
           if (result) {
-            // 各要素のASTをマージする。要素のidが重複しないように注意。
-            // ここでは、elementRuleのidをキーとして、その結果のASTを格納する形も考えられる。
-            // 例: sequenceAstParts[elementRule.id] = result.ast;
-            // 現在はフラットにマージしている。
-            Object.assign(sequenceAstParts, result.ast);
+            sequenceAstParts[parserPair.id] = {
+              type: 'node',
+              children: result.asts,
+            };
             totalConsumedInSequence += result.consumed;
             currentElementIndex += result.consumed;
-          } else {
-            return null; // シーケンスの一部がマッチしなかった
           }
-        }
+        });
+
         // シーケンス全体の結果を rule.id の下にネストする
-        if (totalConsumedInSequence > 0 || rule.elements.length === 0) {
-          return { ast: { [rule.id]: sequenceAstParts }, consumed: totalConsumedInSequence };
+        if (totalConsumedInSequence > 0 || rule.rules.length === 0) {
+          return { asts: sequenceAstParts, consumed: totalConsumedInSequence };
         }
         return null;
       };
+    }
 
-    case 'choice':
+    case 'choice': {
+      const astPairs = rule.rules.map((option) => ({
+        id: option.id,
+        parser: internalParserGenerator(option),
+      }));
+
       return (tokens, currentIndex) => {
-        for (let i = 0; i < rule.options.length; i += 1) {
-          const optionRule = rule.options[i];
-          const optionParser = internalParserGenerator(optionRule);
-          const result = optionParser(tokens, currentIndex);
+        const choiceAstParts: Record<string, ASTNode> = {};
+
+        for (let i = 0; i < astPairs.length; i += 1) {
+          const parserPair = astPairs[i];
+          const result = parserPair.parser(tokens, currentIndex);
           if (result) {
-            // 選択されたオプションのASTを rule.id の下にネストする
-            return { ast: { [rule.id]: result.ast }, consumed: result.consumed };
+            choiceAstParts[parserPair.id] = {
+              type: 'node',
+              children: result.asts,
+            };
+            return { asts: choiceAstParts, consumed: result.consumed };
           }
         }
         return null;
       };
+    }
 
-    case 'repetition': // OptionalDefinition から RepetitionDefinition に変更
+    case 'repetition': {
+      const { min, max } = rule;
+      if (min > max) {
+        throw new ParseError(
+          `Invalid repetition rule: min (${min}) cannot be greater than max (${max}).`
+        );
+      }
+      if (min < 0 || max < 0) {
+        throw new ParseError(
+          `Invalid repetition rule: min (${min}) and max (${max}) must be non-negative.`
+        );
+      }
+      const innerParser = internalParserGenerator(rule.rule);
+
       return (tokens, currentIndex) => {
-        const repetitionResults: AstNode[] = []; // 繰り返されたルールのASTを格納する配列
+        const repetitionResults: Record<string, ASTNode> = {};
+        let repetitionCount = 0;
         let totalConsumedInRepetition = 0;
         let currentRepetitionTokenIndex = currentIndex;
-        const innerParser = internalParserGenerator(rule.rule, terminalParsers);
 
-        while (repetitionResults.length < rule.max) {
-          // 現在のトークン位置で内包ルールを試行
+        while (repetitionCount < max) {
           const result = innerParser(tokens, currentRepetitionTokenIndex);
 
           if (result && result.consumed > 0) {
-            // マッチし、かつトークンを消費した場合のみ進む
-            // result.ast は通常 { innerRuleId: value } の形。これを配列に追加。
-            repetitionResults.push(result.ast);
+            repetitionCount += 1;
+            repetitionResults[`${rule.id}_${repetitionCount}`] = {
+              type: 'node',
+              children: result.asts,
+            };
             totalConsumedInRepetition += result.consumed;
             currentRepetitionTokenIndex += result.consumed;
           } else if (result && result.consumed === 0) {
-            // マッチしたがトークンを消費しなかった場合 (例: 内包ルールがオプショナルで空にマッチ)
-            // 無限ループを防ぐため、ここで停止する必要がある。
-            // ただし、minが0でまだ何もマッチしていない場合は、空のマッチとして許容されるべき。
-            // このケースは複雑なので、ここでは「消費がなければ繰り返し終了」とする。
+            // If matched but no tokens were consumed (e.g., the inner rule is optional and matches empty),
+            // it is necessary to stop here to prevent an infinite loop.
             break;
           } else {
-            break; // マッチしなかったら繰り返し終了
+            // no match
+            break;
           }
         }
 
-        // 最小回数を満たしているか確認
-        if (repetitionResults.length >= rule.min) {
-          return { ast: { [rule.id]: repetitionResults }, consumed: totalConsumedInRepetition };
+        if (repetitionCount >= min) {
+          return { asts: repetitionResults, consumed: totalConsumedInRepetition };
         }
-        return null; // 最小回数に満たなかった
+        return null;
       };
-
+    }
     default:
-      // @ts-ignore rule が never 型であることを保証
       throw new ParseError(`Unsupported grammar rule type: ${rule}`);
   }
+};
+
+export const parserGenerator = (rule: GrammarRule): StyleParser => {
+  const internalParser = internalParserGenerator(rule);
+
+  return (value: string) => {
+    const tokens = value.split(/\s+/);
+    const result = internalParser(tokens, 0);
+    if (result) {
+      return { type: 'node', children: result.asts };
+    }
+    throw new ParseError(`Failed to parse value: ${value}`);
+  };
 };

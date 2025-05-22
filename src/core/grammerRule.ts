@@ -14,7 +14,7 @@ export type KeywordDefinition = {
  * type definition
  */
 export type PrimitiveTokenDefinition = {
-  type: 'type';
+  type: 'primitive';
   tokenType: PrimitiveToken;
   id: string;
 };
@@ -25,7 +25,7 @@ export type PrimitiveTokenDefinition = {
  */
 export interface SequenceDefinition {
   type: 'sequence';
-  elements: GrammarRule[];
+  rules: GrammarRule[];
   id: string;
 }
 
@@ -35,7 +35,7 @@ export interface SequenceDefinition {
  */
 export interface ChoiceDefinition {
   type: 'choice';
-  options: GrammarRule[];
+  rules: GrammarRule[];
   id: string;
 }
 

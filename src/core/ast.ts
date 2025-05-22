@@ -4,10 +4,10 @@ export type Atomic<T extends string | number = string | number> = {
   unit?: string;
 };
 
-export type ASTNode = {
+export type ASTBranch = {
   type: 'node';
   // eslint-disable-next-line no-use-before-define
-  children: Record<string, ASTElement>;
+  children: Record<string, ASTNode>;
 };
 
-export type ASTElement = ASTNode | Atomic<string> | Atomic<number>;
+export type ASTNode = ASTBranch | Atomic<string> | Atomic<number>;
