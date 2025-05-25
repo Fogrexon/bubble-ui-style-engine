@@ -1,5 +1,11 @@
 /* eslint-disable no-use-before-define */
-export type PrimitiveToken = 'length' | 'percentage' | 'integer' | 'color' | 'image';
+export type StaticPrimitiveToken = 'length' | 'percentage' | 'integer' | 'color' | 'image';
+
+export type LimitedLengthToken = `length<${number | '-∞'},${number | '∞'}>`;
+
+export type DynamicPrimitiveToken = LimitedLengthToken;
+
+export type PrimitiveToken = StaticPrimitiveToken | DynamicPrimitiveToken;
 
 /**
  * keyword definition
@@ -11,7 +17,7 @@ export type KeywordDefinition = {
 };
 
 /**
- * type definition
+ * primitive definition
  */
 export type PrimitiveTokenDefinition = {
   type: 'primitive';

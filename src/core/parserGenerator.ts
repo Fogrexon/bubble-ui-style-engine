@@ -1,6 +1,6 @@
-import type { GrammarRule } from './grammerRule.ts';
-import { atomicTokenParsers } from './atomicTokenParsers.ts';
-import type { ASTNode, ASTBranch } from './ast.ts';
+import type { GrammarRule } from './grammarRule';
+import { atomicTokenParsers, atomicTokenParserSelector } from './atomicTokenParsers';
+import type { ASTNode, ASTBranch } from './ast';
 
 export class ParseError extends Error {
   constructor(message: string) {
@@ -32,7 +32,7 @@ const internalParserGenerator = (rule: GrammarRule): InternalStyleParser => {
     }
 
     case 'primitive': {
-      const atomicParser = atomicTokenParsers[rule.tokenType];
+      const atomicParser = atomicTokenParserSelector(rule.tokenType);
       return (tokens, currentIndex) => {
         if (currentIndex < tokens.length) {
           const parsedValue = atomicParser(tokens[currentIndex]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parserGenerator } from './parserGenerator.ts';
-import type { GrammarRule } from './grammerRule.ts';
+import { parserGenerator } from './parserGenerator';
+import type { GrammarRule } from './grammarRule';
 
 describe('simple keyword grammer', () => {
   const grammarRule: GrammarRule = {
@@ -70,7 +70,6 @@ describe('sequence grammar', () => {
 
   it('should generate a parser from the grammar rule', () => {
     const result = parser('1px solid red');
-    console.log(JSON.stringify(result, null, 2));
     expect(result).toEqual({
       type: 'node',
       children: {

@@ -1,5 +1,5 @@
-import type { PrimitiveToken } from './grammerRule.ts';
-import type { Atomic } from './ast.ts';
+import type { LimitedLengthToken, PrimitiveToken, StaticPrimitiveToken } from './grammarRule';
+import type { Atomic } from './ast';
 
 const createAtomic = <T extends string | number>(value: T, unit?: string): Atomic<T> => ({
   type: 'atomic',
@@ -8,6 +8,33 @@ const createAtomic = <T extends string | number>(value: T, unit?: string): Atomi
 });
 
 export type PrimitiveTokenParser<T extends string | number> = (value: string) => Atomic<T> | null;
+
+const isLimitedLengthToken = (tokenType: PrimitiveToken): tokenType is LimitedLengthToken =>
+  /^length<(-?\d+|∞|-\d+),\s*(-?\d+|∞|-\d+)>$/.test(tokenType);
+
+const LimitedLengthTokenParserGenerator: (
+  tokenType: LimitedLengthToken
+) => PrimitiveTokenParser<number> = (tokenType) => {
+  const [min, max] = tokenType
+    .slice(6, -1)
+    .split(',')
+    .map((v) => {
+      if (v === '∞') return Infinity;
+      if (v === '-∞') return -Infinity;
+      return parseFloat(v);
+    });
+
+  return (value: string) => {
+    const unit = value.match(/(px|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
+    const number = value.match(/-?\d*\.?\d+/);
+    if (!unit || !number) return null;
+    const unitValue = unit[0];
+    const numberValue = parseFloat(number[0]);
+    if (Number.isNaN(numberValue)) return null;
+    if (numberValue < min || numberValue > max) return null;
+    return createAtomic(numberValue, unitValue);
+  };
+};
 
 const LengthTokenParser: PrimitiveTokenParser<number> = (value) => {
   const unit = value.match(/(px|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
@@ -93,7 +120,7 @@ type PrimitiveTokenParsedType = {
 };
 
 type PrimitiveTokenParsers = {
-  [K in PrimitiveToken]: PrimitiveTokenParser<PrimitiveTokenParsedType[K]>;
+  [K in StaticPrimitiveToken]: PrimitiveTokenParser<PrimitiveTokenParsedType[K]>;
 };
 
 type KeywordTokenParsers = {
@@ -110,4 +137,12 @@ export const atomicTokenParsers: PrimitiveTokenParsers & KeywordTokenParsers = {
   color: ColorTokenParser,
   image: ImageTokenParser,
   keyword: keywordTokenParser,
+};
+
+export const atomicTokenParserSelector = (tokenType: PrimitiveToken) => {
+  if (isLimitedLengthToken(tokenType)) {
+    return LimitedLengthTokenParserGenerator(tokenType);
+  }
+
+  return atomicTokenParsers[tokenType] || null;
 };

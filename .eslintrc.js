@@ -43,6 +43,16 @@ module.exports = {
             bundledDependencies: false,
           },
         ],
+        'import/extensions': [
+          'error',
+          'ignorePackages',
+          {
+            js: 'never',
+            jsx: 'never',
+            ts: 'never',
+            tsx: 'never',
+          },
+        ],
       },
     },
   ],
