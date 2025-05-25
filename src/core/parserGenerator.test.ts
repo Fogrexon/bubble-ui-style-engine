@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parserGenerator } from './parserGenerator';
+import { parserGenerator } from './parserGenerator.ts';
 import type { GrammarRule } from './grammarRule';
 
-describe('simple keyword grammer', () => {
+describe('simple keyword grammar', () => {
   const grammarRule: GrammarRule = {
     type: 'keyword',
     value: 'test',

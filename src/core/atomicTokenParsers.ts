@@ -1,5 +1,6 @@
 import type { LimitedLengthToken, PrimitiveToken, StaticPrimitiveToken } from './grammarRule';
 import type { Atomic } from './ast';
+import { getRangeStringProcessor } from './util';
 
 const createAtomic = <T extends string | number>(value: T, unit?: string): Atomic<T> => ({
   type: 'atomic',
@@ -9,20 +10,13 @@ const createAtomic = <T extends string | number>(value: T, unit?: string): Atomi
 
 export type PrimitiveTokenParser<T extends string | number> = (value: string) => Atomic<T> | null;
 
-const isLimitedLengthToken = (tokenType: PrimitiveToken): tokenType is LimitedLengthToken =>
-  /^length<(-?\d+|∞|-\d+),\s*(-?\d+|∞|-\d+)>$/.test(tokenType);
+const { tester: isLimitedLengthToken, getRange: getLimitedLengthTokenRange } =
+  getRangeStringProcessor('length');
 
 const LimitedLengthTokenParserGenerator: (
   tokenType: LimitedLengthToken
 ) => PrimitiveTokenParser<number> = (tokenType) => {
-  const [min, max] = tokenType
-    .slice(6, -1)
-    .split(',')
-    .map((v) => {
-      if (v === '∞') return Infinity;
-      if (v === '-∞') return -Infinity;
-      return parseFloat(v);
-    });
+  const [min, max] = getLimitedLengthTokenRange(tokenType);
 
   return (value: string) => {
     const unit = value.match(/(px|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
