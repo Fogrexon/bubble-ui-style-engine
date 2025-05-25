@@ -33,6 +33,16 @@ export type PrimitiveTokenDefinition = {
 };
 
 /**
+ * unordered definition
+ * A || B || C
+ */
+export interface UnorderedDefinition {
+  type: 'unordered';
+  rules: GrammarRule[];
+  id: string;
+}
+
+/**
  * sequence definition
  * A B C
  */
@@ -57,28 +67,19 @@ export interface ChoiceDefinition {
  * A{1,3}
  */
 export interface RepetitionDefinition {
-  type: RepetitionType;
+  type: 'repetition' | RepetitionType; // 'repetition<min,max>'
   rule: GrammarRule;
-  min: number;
-  max: number;
   id: string;
 }
 
 /**
  * grammar rule
- * keyword | type | sequence | choice | repetition
+ * keyword | type | sequence | unordered | choice | repetition
  */
 export type GrammarRule =
   | KeywordDefinition
   | PrimitiveTokenDefinition
   | SequenceDefinition
+  | UnorderedDefinition
   | ChoiceDefinition
   | RepetitionDefinition;
-
-/**
- * property grammar
- */
-export interface PropertyGrammar {
-  propertyName: string;
-  rootRule: GrammarRule;
-}

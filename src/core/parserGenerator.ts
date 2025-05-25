@@ -6,6 +6,7 @@ import type {
   PrimitiveTokenDefinition,
   RepetitionDefinition,
   SequenceDefinition,
+  UnorderedDefinition,
 } from './grammarRule';
 import { atomicTokenParsers, atomicTokenParserSelector } from './atomicTokenParsers';
 import type { ASTNode, ASTBranch } from './ast';
@@ -22,6 +23,14 @@ export class ParseError extends Error {
   }
 }
 
+type ASTPair = {
+  id: string;
+  parser: (
+    tokens: string[],
+    currentIndex: number
+  ) => { asts: Record<string, ASTNode>; consumed: number } | null;
+};
+
 export type StyleParser = (value: string) => ASTBranch;
 export type InternalStyleParser = (
   tokens: string[],
@@ -29,14 +38,8 @@ export type InternalStyleParser = (
 ) => { asts: Record<string, ASTNode>; consumed: number } | null;
 
 const getAstPairs = (
-  rule: SequenceDefinition | ChoiceDefinition
-): {
-  id: string;
-  parser: (
-    tokens: string[],
-    currentIndex: number
-  ) => { asts: Record<string, ASTNode>; consumed: number } | null;
-}[] =>
+  rule: SequenceDefinition | ChoiceDefinition | UnorderedDefinition
+): ASTPair[] =>
   rule.rules.map((element) => ({
     id: element.id,
     parser: internalParserGenerator(element),
@@ -96,6 +99,49 @@ const sequenceParserGenerator = (rule: SequenceDefinition): InternalStyleParser 
   };
 };
 
+const unorderedParserGenerator = (rule: UnorderedDefinition): InternalStyleParser => {
+  const astPairs = getAstPairs(rule);
+
+  return (tokens, currentIndex) => {
+    const unorderedAstParts: Record<string, ASTNode> = {};
+    let currentTotalConsumed = currentIndex;
+    const validParsers = [...astPairs];
+
+    while (currentTotalConsumed < tokens.length) {
+      let matched: number = -1;
+
+      for (let i = 0; i < validParsers.length; i += 1) {
+        const parserPair = validParsers[i];
+        const result = parserPair.parser(tokens, currentTotalConsumed);
+        if (result) {
+          unorderedAstParts[parserPair.id] = {
+            type: 'node',
+            children: result.asts,
+          };
+          currentTotalConsumed += result.consumed;
+          matched = i;
+          break;
+        }
+      }
+
+      if (matched < 0) {
+        break;
+      }
+
+      validParsers.splice(matched, 1);
+    }
+
+    if (currentTotalConsumed === currentIndex) {
+      // no match
+      return null;
+    }
+    return {
+      asts: unorderedAstParts,
+      consumed: currentTotalConsumed - currentIndex,
+    };
+  };
+};
+
 const choiceParserGenerator = (rule: ChoiceDefinition): InternalStyleParser => {
   const astPairs = getAstPairs(rule);
 
@@ -118,7 +164,8 @@ const choiceParserGenerator = (rule: ChoiceDefinition): InternalStyleParser => {
 };
 
 const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStyleParser => {
-  const [min, max] = repetitionTypeRange(rule.type);
+  const [min, max] =
+    rule.type === 'repetition' ? [-Infinity, Infinity] : repetitionTypeRange(rule.type);
   if (min > max) {
     throw new ParseError(
       `Invalid repetition rule: min (${min}) cannot be greater than max (${max}).`
@@ -134,10 +181,9 @@ const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStylePar
   return (tokens, currentIndex) => {
     const repetitionResults: Record<string, ASTNode> = {};
     let repetitionCount = 0;
-    let totalConsumedInRepetition = 0;
     let currentRepetitionTokenIndex = currentIndex;
 
-    while (repetitionCount < max) {
+    while (repetitionCount < max && currentRepetitionTokenIndex < tokens.length) {
       const result = innerParser(tokens, currentRepetitionTokenIndex);
 
       if (result && result.consumed > 0) {
@@ -146,7 +192,6 @@ const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStylePar
           type: 'node',
           children: result.asts,
         };
-        totalConsumedInRepetition += result.consumed;
         currentRepetitionTokenIndex += result.consumed;
       } else if (result && result.consumed === 0) {
         // If matched but no tokens were consumed (e.g., the inner rule is optional and matches empty),
@@ -159,7 +204,7 @@ const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStylePar
     }
 
     if (repetitionCount >= min) {
-      return { asts: repetitionResults, consumed: totalConsumedInRepetition };
+      return { asts: repetitionResults, consumed: currentRepetitionTokenIndex - currentIndex };
     }
     return null;
   };
@@ -171,15 +216,19 @@ const internalParserGenerator = (rule: GrammarRule): InternalStyleParser => {
       return keywordParserGenerator(rule);
     case 'primitive':
       return primitiveParserGenerator(rule);
-    // TODO: non-order
+    case 'unordered':
+      return unorderedParserGenerator(rule);
     case 'sequence':
       return sequenceParserGenerator(rule);
     case 'choice':
       return choiceParserGenerator(rule);
+    case 'repetition':
+      return repetitionParserGenerator(rule);
 
     default: {
       if (repetitionTypeTester(rule.type)) {
-        return repetitionParserGenerator(rule);
+        const repetitionRule = rule as RepetitionDefinition;
+        return repetitionParserGenerator(repetitionRule);
       }
       throw new ParseError(`Unsupported grammar rule type: ${rule}`);
     }
@@ -192,7 +241,7 @@ export const parserGenerator = (rule: GrammarRule): StyleParser => {
   return (value: string) => {
     const tokens = value.split(/\s+/);
     const result = internalParser(tokens, 0);
-    if (result) {
+    if (result && result.consumed === tokens.length) {
       return { type: 'node', children: result.asts };
     }
     throw new ParseError(`Failed to parse value: ${value}`);
