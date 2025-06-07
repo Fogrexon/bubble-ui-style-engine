@@ -20,7 +20,7 @@ export type RepetitionType = RangeString<'repetition'>;
 export type KeywordDefinition = {
   type: 'keyword';
   value: string;
-  id: string;
+  id?: string;
 };
 
 /**
@@ -29,7 +29,7 @@ export type KeywordDefinition = {
 export type PrimitiveTokenDefinition = {
   type: 'primitive';
   tokenType: PrimitiveToken;
-  id: string;
+  id?: string;
 };
 
 /**

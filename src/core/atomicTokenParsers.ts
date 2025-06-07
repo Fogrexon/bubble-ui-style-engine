@@ -1,14 +1,19 @@
 import type { LimitedLengthToken, PrimitiveToken, StaticPrimitiveToken } from './grammarRule';
-import type { Atomic } from './ast';
+import type { ASTLeaf } from './ast';
 import { getRangeStringProcessor } from './util';
 
-const createAtomic = <T extends string | number>(value: T, unit?: string): Atomic<T> => ({
-  type: 'atomic',
+const createLeaf = <T extends string | number>(
+  id: StaticPrimitiveToken | 'keyword',
+  value: T,
+  unit?: string
+): ASTLeaf<T> => ({
+  type: 'leaf',
+  id,
   value,
   unit,
 });
 
-export type PrimitiveTokenParser<T extends string | number> = (value: string) => Atomic<T> | null;
+export type PrimitiveTokenParser<T extends string | number> = (value: string) => ASTLeaf<T> | null;
 
 const { tester: isLimitedLengthToken, getRange: getLimitedLengthTokenRange } =
   getRangeStringProcessor('length');
@@ -19,34 +24,37 @@ const LimitedLengthTokenParserGenerator: (
   const [min, max] = getLimitedLengthTokenRange(tokenType);
 
   return (value: string) => {
-    const unit = value.match(/(px|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
-    const number = value.match(/-?\d*\.?\d+/);
-    if (!unit || !number) return null;
-    const unitValue = unit[0];
+    const s = value.toLowerCase().trim();
+    const unit = s.match(/(px|%|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
+    const number = s.match(/-?\d*\.?\d+/);
+    if (!number || (unit && unit[0] === '%')) return null;
+    const unitValue = unit ? unit[0] : '';
     const numberValue = parseFloat(number[0]);
     if (Number.isNaN(numberValue)) return null;
     if (numberValue < min || numberValue > max) return null;
-    return createAtomic(numberValue, unitValue);
+    return createLeaf('length', numberValue, unitValue);
   };
 };
 
 const LengthTokenParser: PrimitiveTokenParser<number> = (value) => {
-  const unit = value.match(/(px|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
-  const number = value.match(/-?\d*\.?\d+/);
-  if (!unit || !number) return null;
-  const unitValue = unit[0];
+  const s = value.toLowerCase().trim();
+  const unit = s.match(/(px|%|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
+  const number = s.match(/-?\d*\.?\d+/);
+  if (!number || (unit && unit[0] === '%')) return null;
+  const unitValue = unit ? unit[0] : '';
   const numberValue = parseFloat(number[0]);
   if (Number.isNaN(numberValue)) return null;
-  return createAtomic(numberValue, unitValue);
+  return createLeaf('length', numberValue, unitValue);
 };
 
 const PercentageTokenParser: PrimitiveTokenParser<number> = (value) => {
-  const unit = value.match(/%$/);
-  const number = value.match(/-?\d*\.?\d+/);
+  const s = value.toLowerCase().trim();
+  const unit = s.match(/%$/);
+  const number = s.match(/-?\d*\.?\d+/);
   if (!number || !unit) return null;
   const numberValue = parseFloat(number[0]);
   if (Number.isNaN(numberValue)) return null;
-  return createAtomic(numberValue, '%');
+  return createLeaf('percentage', numberValue, '%');
 };
 
 const IntegerTokenParser: PrimitiveTokenParser<number> = (value) => {
@@ -54,11 +62,11 @@ const IntegerTokenParser: PrimitiveTokenParser<number> = (value) => {
   if (!number) return null;
   const numberValue = parseInt(number[0], 10);
   if (Number.isNaN(numberValue)) return null;
-  return createAtomic(numberValue);
+  return createLeaf('integer', numberValue);
 };
 
 const ColorTokenParser: PrimitiveTokenParser<string> = (value) => {
-  const s = value.toLowerCase();
+  const s = value.toLowerCase().trim();
   const commonColors = [
     'transparent',
     'currentcolor',
@@ -79,7 +87,7 @@ const ColorTokenParser: PrimitiveTokenParser<string> = (value) => {
     'teal',
     'aqua',
     'rebeccapurple',
-    // これに限らないが、いったん有名そうなものを列挙
+    // Not limited to this, but list some famous ones for now
   ];
   if (
     !commonColors.includes(s) &&
@@ -88,20 +96,20 @@ const ColorTokenParser: PrimitiveTokenParser<string> = (value) => {
     !/^hsla?\s*\((\s*\d+\s*,\s*){2}\s*\d+%\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/.test(s)
   )
     return null; // 簡単なチェック
-  return createAtomic(s);
+  return createLeaf('color', s);
 };
 
 const ImageTokenParser: PrimitiveTokenParser<string> = (value) => {
   const s = value.toLowerCase();
   const extractedUrl = s.match(/url\(([^)]+)\)/);
   if (!extractedUrl) return null;
-  return createAtomic(extractedUrl[1]);
+  return createLeaf('image', extractedUrl[1].replace(/['"]/g, ''));
 };
 
 const keywordTokenParser = (value: string, keyword: string) => {
   const s = value.toLowerCase();
   if (s !== keyword) return null;
-  return createAtomic(s);
+  return createLeaf('keyword', s);
 };
 
 type PrimitiveTokenParsedType = {

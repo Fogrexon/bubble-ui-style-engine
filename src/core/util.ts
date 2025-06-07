@@ -8,14 +8,15 @@ type RangeStringProcessor<T extends string> = {
 };
 
 export const getRangeStringProcessor = <T extends string>(baseString: T) => {
-  const regex = new RegExp(`^${baseString}<(-?\\d+|∞|-\\d+),\\s*(-?\\d+|∞|-\\d+)>$`);
+  const regex = new RegExp(`^${baseString}<(-?\\d+|-∞),(-?\\d+|\\+?∞)>$`);
   const processor: RangeStringProcessor<T> = {
     tester: (value: string): value is RangeString<T> => regex.test(value),
     getRange: (value: RangeString<T>): [number, number] => {
       const match = value.match(regex);
       if (!match) throw new Error(`Invalid range string: ${value}`);
       const min = match[1] === '-∞' ? -Infinity : parseFloat(match[1]);
-      const max = match[2] === '∞' ? -Infinity : parseFloat(match[2]);
+      const max = match[2] === '∞' ? Infinity : parseFloat(match[2]);
+      if (min > max) throw new Error(`Invalid range: ${min} is greater than ${max}`);
       return [min, max];
     },
   };
