@@ -2,8 +2,9 @@
   "name": "bubble-ui-style-engine",
   "version": "0.1.0",
   "description": "Library for decoding CSS-in-JS like syntax.",
-  "main": "build/commonjs/src/index.js",
-  "module": "build/es/src/index.js",
+  "main": "build/commonjs/index.js",
+  "module": "build/es/index.js",
+    "types": "build/types/index.d.ts",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
