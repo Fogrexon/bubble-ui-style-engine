@@ -1,40 +1,25 @@
-import type { LimitedLengthToken, PrimitiveToken, StaticPrimitiveToken } from './grammarRule';
-import type { ASTLeaf } from './ast';
+import type {
+  DynamicPrimitiveToken,
+  KeywordToken,
+  LimitedLengthToken,
+  PrimitiveToken,
+  StaticPrimitiveToken,
+} from './grammarRule';
+import type { ASTLeaf, LeafApplicableToken } from './ast';
 import { getRangeStringProcessor } from './util';
 
 const createLeaf = <T extends string | number>(
-  id: StaticPrimitiveToken | 'keyword',
+  tokenType: LeafApplicableToken,
   value: T,
   unit?: string
 ): ASTLeaf<T> => ({
   type: 'leaf',
-  id,
+  tokenType,
   value,
   unit,
 });
 
 export type PrimitiveTokenParser<T extends string | number> = (value: string) => ASTLeaf<T> | null;
-
-const { tester: isLimitedLengthToken, getRange: getLimitedLengthTokenRange } =
-  getRangeStringProcessor('length');
-
-const LimitedLengthTokenParserGenerator: (
-  tokenType: LimitedLengthToken
-) => PrimitiveTokenParser<number> = (tokenType) => {
-  const [min, max] = getLimitedLengthTokenRange(tokenType);
-
-  return (value: string) => {
-    const s = value.toLowerCase().trim();
-    const unit = s.match(/(px|%|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
-    const number = s.match(/-?\d*\.?\d+/);
-    if (!number || (unit && unit[0] === '%')) return null;
-    const unitValue = unit ? unit[0] : '';
-    const numberValue = parseFloat(number[0]);
-    if (Number.isNaN(numberValue)) return null;
-    if (numberValue < min || numberValue > max) return null;
-    return createLeaf('length', numberValue, unitValue);
-  };
-};
 
 const LengthTokenParser: PrimitiveTokenParser<number> = (value) => {
   const s = value.toLowerCase().trim();
@@ -106,10 +91,48 @@ const ImageTokenParser: PrimitiveTokenParser<string> = (value) => {
   return createLeaf('image', extractedUrl[1].replace(/['"]/g, ''));
 };
 
-const keywordTokenParser = (value: string, keyword: string) => {
-  const s = value.toLowerCase();
-  if (s !== keyword) return null;
-  return createLeaf('keyword', s);
+// dynamic tokens
+
+export type DynamicTokenParserGenerator<
+  T extends DynamicPrimitiveToken,
+  U extends string | number,
+> = (tokenType: T) => PrimitiveTokenParser<U>;
+
+const { tester: isLimitedLengthToken, getRange: getLimitedLengthTokenRange } =
+  getRangeStringProcessor('length');
+
+const LimitedLengthTokenParserGenerator: DynamicTokenParserGenerator<LimitedLengthToken, number> = (
+  tokenType
+) => {
+  const [min, max] = getLimitedLengthTokenRange(tokenType);
+
+  return (value: string) => {
+    const s = value.toLowerCase().trim();
+    const unit = s.match(/(px|%|em|rem|vw|vh|vmin|vmax|cm|mm|in|pt|pc)$/);
+    const number = s.match(/-?\d*\.?\d+/);
+    if (!number || (unit && unit[0] === '%')) return null;
+    const unitValue = unit ? unit[0] : '';
+    const numberValue = parseFloat(number[0]);
+    if (Number.isNaN(numberValue)) return null;
+    if (numberValue < min || numberValue > max) return null;
+    return createLeaf('length', numberValue, unitValue);
+  };
+};
+
+const isKeywordToken = (value: string): value is KeywordToken =>
+  value.startsWith('keyword<') && value.endsWith('>');
+const KeywordTokenParserGenerator: DynamicTokenParserGenerator<KeywordToken, string> = (
+  tokenType
+) => {
+  // keyword<type1,type2,...>
+  const rawKeywords = tokenType.slice(8, -1); // remove 'keyword<' and '>'
+  const keywords = rawKeywords.split(',').map((k) => k.trim().toLowerCase());
+
+  return (value: string) => {
+    const s = value.toLowerCase();
+    if (!keywords.includes(s)) return null;
+    return createLeaf('keyword', s);
+  };
 };
 
 type PrimitiveTokenParsedType = {
@@ -119,31 +142,33 @@ type PrimitiveTokenParsedType = {
   integer: number;
   number: number;
   image: string;
+  keyword: string;
 };
 
 type PrimitiveTokenParsers = {
-  [K in StaticPrimitiveToken]: PrimitiveTokenParser<PrimitiveTokenParsedType[K]>;
-};
-
-type KeywordTokenParsers = {
-  keyword: typeof keywordTokenParser;
+  [K in Exclude<StaticPrimitiveToken, 'keyword'>]: PrimitiveTokenParser<
+    PrimitiveTokenParsedType[K]
+  >;
 };
 
 /**
  * parsers of primitive tokens
  */
-export const atomicTokenParsers: PrimitiveTokenParsers & KeywordTokenParsers = {
+export const atomicTokenParsers: PrimitiveTokenParsers = {
   length: LengthTokenParser,
   percentage: PercentageTokenParser,
   integer: IntegerTokenParser,
   color: ColorTokenParser,
   image: ImageTokenParser,
-  keyword: keywordTokenParser,
 };
 
 export const atomicTokenParserSelector = (tokenType: PrimitiveToken) => {
   if (isLimitedLengthToken(tokenType)) {
     return LimitedLengthTokenParserGenerator(tokenType);
+  }
+
+  if (isKeywordToken(tokenType)) {
+    return KeywordTokenParserGenerator(tokenType);
   }
 
   return atomicTokenParsers[tokenType] || null;

@@ -2,13 +2,13 @@
 import type {
   ChoiceDefinition,
   GrammarRule,
-  KeywordDefinition,
+  LabelDefinition,
   PrimitiveTokenDefinition,
   RepetitionDefinition,
   SequenceDefinition,
   UnorderedDefinition,
 } from './grammarRule';
-import { atomicTokenParsers, atomicTokenParserSelector } from './atomicTokenParsers';
+import { atomicTokenParserSelector } from './atomicTokenParsers';
 import type { ASTNode, ASTBranch } from './ast';
 import { getRangeStringProcessor } from './util';
 import { tokenizer } from './tokenizer';
@@ -43,26 +43,25 @@ const getParserPairArray = (
     parser: internalParserGenerator(element),
   }));
 
-const keywordParserGenerator = (rule: KeywordDefinition): InternalStyleParser => {
-  const keyword = rule.value;
-  return (tokens, currentIndex) => {
-    if (currentIndex < tokens.length) {
-      const matchedValue = atomicTokenParsers.keyword(tokens[currentIndex], keyword);
-      if (matchedValue !== null) {
-        return { asts: [matchedValue], consumed: 1 };
-      }
-    }
-    return null;
-  };
-};
-
 const primitiveParserGenerator = (rule: PrimitiveTokenDefinition): InternalStyleParser => {
   const atomicParser = atomicTokenParserSelector(rule.tokenType);
   return (tokens, currentIndex) => {
     if (currentIndex < tokens.length) {
       const parsedValue = atomicParser(tokens[currentIndex]);
       if (parsedValue !== null) {
-        return { asts: [parsedValue], consumed: 1 };
+        if (!rule.id) {
+          return { asts: [parsedValue], consumed: 1 };
+        }
+        return {
+          asts: [
+            {
+              type: 'branch',
+              id: rule.id,
+              children: [parsedValue],
+            },
+          ],
+          consumed: 1,
+        };
       }
     }
     return null;
@@ -85,11 +84,7 @@ const sequenceParserGenerator = (rule: SequenceDefinition): InternalStyleParser 
       const parserPair = astPairs[i];
       const result = parserPair.parser(tokens, currentElementIndex);
       if (result) {
-        sequenceAstParts.push({
-          type: 'branch',
-          id: parserPair.id,
-          children: result.asts,
-        });
+        sequenceAstParts.push(...result.asts);
         totalConsumedInSequence += result.consumed;
         currentElementIndex += result.consumed;
       } else {
@@ -98,7 +93,16 @@ const sequenceParserGenerator = (rule: SequenceDefinition): InternalStyleParser 
     }
 
     if (totalConsumedInSequence > 0 || rule.rules.length === 0) {
-      return { asts: sequenceAstParts, consumed: totalConsumedInSequence };
+      return {
+        asts: [
+          {
+            type: 'branch',
+            id: rule.id,
+            children: sequenceAstParts,
+          },
+        ],
+        consumed: totalConsumedInSequence,
+      };
     }
     return null;
   };
@@ -119,11 +123,7 @@ const unorderedParserGenerator = (rule: UnorderedDefinition): InternalStyleParse
         const parserPair = validParsers[i];
         const result = parserPair.parser(tokens, currentTotalConsumed);
         if (result) {
-          unorderedAstParts.push({
-            type: 'branch',
-            id: parserPair.id,
-            children: result.asts,
-          });
+          unorderedAstParts.push(...result.asts);
           currentTotalConsumed += result.consumed;
           matched = i;
           break;
@@ -142,7 +142,13 @@ const unorderedParserGenerator = (rule: UnorderedDefinition): InternalStyleParse
       return null;
     }
     return {
-      asts: unorderedAstParts,
+      asts: [
+        {
+          type: 'branch',
+          id: rule.id,
+          children: unorderedAstParts,
+        },
+      ],
       consumed: currentTotalConsumed - currentIndex,
     };
   };
@@ -158,12 +164,17 @@ const choiceParserGenerator = (rule: ChoiceDefinition): InternalStyleParser => {
       const parserPair = astPairs[i];
       const result = parserPair.parser(tokens, currentIndex);
       if (result) {
-        choiceAstParts.push({
-          type: 'branch',
-          id: parserPair.id,
-          children: result.asts,
-        });
-        return { asts: choiceAstParts, consumed: result.consumed };
+        choiceAstParts.push(...result.asts);
+        return {
+          asts: [
+            {
+              type: 'branch',
+              id: rule.id,
+              children: choiceAstParts,
+            },
+          ],
+          consumed: result.consumed,
+        };
       }
     }
     return null;
@@ -183,8 +194,6 @@ const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStylePar
     );
   }
   const innerParser = internalParserGenerator(rule.rule);
-
-  const repetitionRule = rule.rule;
 
   return (tokens, currentIndex) => {
     const repetitionResults: ASTNode[] = [];
@@ -213,7 +222,7 @@ const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStylePar
         asts: [
           {
             type: 'branch',
-            id: repetitionRule.id || repetitionRule.type,
+            id: rule.id,
             children: repetitionResults,
           },
         ],
@@ -224,10 +233,28 @@ const repetitionParserGenerator = (rule: RepetitionDefinition): InternalStylePar
   };
 };
 
+const labelParserGenerator = (rule: LabelDefinition): InternalStyleParser => {
+  const innerParser = internalParserGenerator(rule.rule);
+  return (tokens, currentIndex) => {
+    const result = innerParser(tokens, currentIndex);
+    if (result) {
+      return {
+        asts: [
+          {
+            type: 'branch',
+            id: rule.id,
+            children: result.asts,
+          },
+        ],
+        consumed: result.consumed,
+      };
+    }
+    return null;
+  };
+};
+
 const internalParserGenerator = (rule: GrammarRule): InternalStyleParser => {
   switch (rule.type) {
-    case 'keyword':
-      return keywordParserGenerator(rule);
     case 'primitive':
       return primitiveParserGenerator(rule);
     case 'unordered':
@@ -238,6 +265,8 @@ const internalParserGenerator = (rule: GrammarRule): InternalStyleParser => {
       return choiceParserGenerator(rule);
     case 'repetition':
       return repetitionParserGenerator(rule);
+    case 'label':
+      return labelParserGenerator(rule);
 
     default: {
       if (repetitionTypeTester(rule.type)) {
