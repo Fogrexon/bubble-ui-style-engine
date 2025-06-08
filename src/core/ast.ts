@@ -1,6 +1,10 @@
+import type { StaticPrimitiveToken } from './grammarRule';
+
+export type LeafApplicableToken = StaticPrimitiveToken | 'keyword';
+
 export type ASTLeaf<T extends string | number = string | number> = {
   type: 'leaf';
-  id: string;
+  tokenType: LeafApplicableToken;
   value: T;
   unit?: string;
 };

@@ -4,8 +4,8 @@ import type { GrammarRule } from './grammarRule';
 
 describe('simple keyword grammar', () => {
   const grammarRule: GrammarRule = {
-    type: 'keyword',
-    value: 'test',
+    type: 'primitive',
+    tokenType: 'keyword<test>',
     id: 'testId',
   };
   const parser = parserGenerator(grammarRule);
@@ -16,9 +16,15 @@ describe('simple keyword grammar', () => {
       id: 'root',
       children: [
         {
-          type: 'leaf',
-          id: 'keyword',
-          value: 'test',
+          type: 'branch',
+          id: 'testId',
+          children: [
+            {
+              type: 'leaf',
+              tokenType: 'keyword',
+              value: 'test',
+            },
+          ],
         },
       ],
     });
@@ -60,36 +66,42 @@ describe('sequence grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'border',
           children: [
             {
-              type: 'leaf',
-              id: 'length',
-              unit: 'px',
-              value: 1,
+              type: 'branch',
+              id: 'borderWidth',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'length',
+                  unit: 'px',
+                  value: 1,
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderRadius',
-          children: [
             {
-              type: 'leaf',
-              id: 'percentage',
-              unit: '%',
-              value: 10,
+              type: 'branch',
+              id: 'borderRadius',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'percentage',
+                  unit: '%',
+                  value: 10,
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderColor',
-          children: [
             {
-              type: 'leaf',
-              id: 'color',
-              value: 'red',
+              type: 'branch',
+              id: 'borderColor',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'color',
+                  value: 'red',
+                },
+              ],
             },
           ],
         },
@@ -138,36 +150,42 @@ describe('unordered grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'border',
           children: [
             {
-              type: 'leaf',
-              id: 'length',
-              unit: 'px',
-              value: 1,
+              type: 'branch',
+              id: 'borderWidth',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'length',
+                  unit: 'px',
+                  value: 1,
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderColor',
-          children: [
             {
-              type: 'leaf',
-              id: 'color',
-              value: 'red',
+              type: 'branch',
+              id: 'borderColor',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'color',
+                  value: 'red',
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderRadius',
-          children: [
             {
-              type: 'leaf',
-              id: 'percentage',
-              unit: '%',
-              value: 10,
+              type: 'branch',
+              id: 'borderRadius',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'percentage',
+                  unit: '%',
+                  value: 10,
+                },
+              ],
             },
           ],
         },
@@ -188,36 +206,42 @@ describe('unordered grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderRadius',
+          id: 'border',
           children: [
             {
-              type: 'leaf',
-              id: 'percentage',
-              unit: '%',
-              value: 10,
+              type: 'branch',
+              id: 'borderRadius',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'percentage',
+                  unit: '%',
+                  value: 10,
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderColor',
-          children: [
             {
-              type: 'leaf',
-              id: 'color',
-              value: 'red',
+              type: 'branch',
+              id: 'borderColor',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'color',
+                  value: 'red',
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderWidth',
-          children: [
             {
-              type: 'leaf',
-              id: 'length',
-              unit: 'px',
-              value: 1,
+              type: 'branch',
+              id: 'borderWidth',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'length',
+                  unit: 'px',
+                  value: 1,
+                },
+              ],
             },
           ],
         },
@@ -232,24 +256,30 @@ describe('unordered grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'border',
           children: [
             {
-              type: 'leaf',
-              id: 'length',
-              unit: 'px',
-              value: 1,
+              type: 'branch',
+              id: 'borderWidth',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'length',
+                  unit: 'px',
+                  value: 1,
+                },
+              ],
             },
-          ],
-        },
-        {
-          type: 'branch',
-          id: 'borderColor',
-          children: [
             {
-              type: 'leaf',
-              id: 'color',
-              value: 'red',
+              type: 'branch',
+              id: 'borderColor',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'color',
+                  value: 'red',
+                },
+              ],
             },
           ],
         },
@@ -290,13 +320,19 @@ describe('choice grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'border',
           children: [
             {
-              type: 'leaf',
-              id: 'length',
-              unit: 'px',
-              value: 1,
+              type: 'branch',
+              id: 'borderWidth',
+              children: [
+                {
+                  type: 'leaf',
+                  tokenType: 'length',
+                  unit: 'px',
+                  value: 1,
+                },
+              ],
             },
           ],
         },
@@ -311,19 +347,17 @@ describe('choice grammar', () => {
 
 describe('repetition grammar', () => {
   const grammarRule: GrammarRule = {
-    id: 'border',
+    id: 'width',
     type: 'repetition<2,4>',
     rule: {
-      id: 'borderWidth',
       type: 'primitive',
       tokenType: 'length',
     },
   };
   const infiniteGrammarRule: GrammarRule = {
-    id: 'border',
+    id: 'width',
     type: 'repetition',
     rule: {
-      id: 'borderWidth',
       type: 'primitive',
       tokenType: 'length',
     },
@@ -338,11 +372,11 @@ describe('repetition grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'width',
           children: [
-            { type: 'leaf', id: 'length', unit: 'px', value: 1 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 2 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 3 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 1 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 2 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 3 },
           ],
         },
       ],
@@ -365,13 +399,13 @@ describe('repetition grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'width',
           children: [
-            { type: 'leaf', id: 'length', unit: 'px', value: 1 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 2 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 3 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 4 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 5 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 1 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 2 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 3 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 4 },
+            { type: 'leaf', tokenType: 'length', unit: 'px', value: 5 },
           ],
         },
       ],
@@ -385,16 +419,12 @@ describe('united grammar', () => {
     type: 'choice',
     rules: [
       {
-        type: 'keyword',
-        value: 'solid',
+        type: 'primitive',
+        tokenType: 'keyword<solid, dashed, dotted, double>',
       },
       {
-        type: 'keyword',
-        value: 'dashed',
-      },
-      {
-        type: 'keyword',
-        value: 'dotted',
+        type: 'primitive',
+        tokenType: 'percentage',
       },
     ],
   };
@@ -403,7 +433,6 @@ describe('united grammar', () => {
     id: 'borderWidth',
     type: 'repetition<1,4>',
     rule: {
-      id: 'length',
       type: 'primitive',
       tokenType: 'length',
     },
@@ -432,43 +461,55 @@ describe('united grammar', () => {
       children: [
         {
           type: 'branch',
-          id: 'borderStyle',
-          children: [{ type: 'leaf', id: 'keyword', value: 'solid' }],
-        },
-        {
-          type: 'branch',
-          id: 'borderWidth',
-          children: [{ type: 'leaf', id: 'length', unit: 'px', value: 1 }],
-        },
-        {
-          type: 'branch',
-          id: 'borderColor',
-          children: [{ type: 'leaf', id: 'color', value: 'red' }],
+          id: 'border',
+          children: [
+            {
+              type: 'branch',
+              id: 'borderStyle',
+              children: [{ type: 'leaf', tokenType: 'keyword', value: 'solid' }],
+            },
+            {
+              type: 'branch',
+              id: 'borderWidth',
+              children: [{ type: 'leaf', tokenType: 'length', unit: 'px', value: 1 }],
+            },
+            {
+              type: 'branch',
+              id: 'borderColor',
+              children: [{ type: 'leaf', tokenType: 'color', value: 'red' }],
+            },
+          ],
         },
       ],
     });
   });
 
   it('should parse fewer elements if not all are provided', () => {
-    const result = parser('2px 5px 3px 7px dashed');
+    const result = parser('2px 5px 3px 7px 4%');
     expect(result).toEqual({
       type: 'branch',
       id: 'root',
       children: [
         {
           type: 'branch',
-          id: 'borderWidth',
+          id: 'border',
           children: [
-            { type: 'leaf', id: 'length', unit: 'px', value: 2 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 5 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 3 },
-            { type: 'leaf', id: 'length', unit: 'px', value: 7 },
+            {
+              type: 'branch',
+              id: 'borderWidth',
+              children: [
+                { type: 'leaf', tokenType: 'length', unit: 'px', value: 2 },
+                { type: 'leaf', tokenType: 'length', unit: 'px', value: 5 },
+                { type: 'leaf', tokenType: 'length', unit: 'px', value: 3 },
+                { type: 'leaf', tokenType: 'length', unit: 'px', value: 7 },
+              ],
+            },
+            {
+              type: 'branch',
+              id: 'borderStyle',
+              children: [{ type: 'leaf', tokenType: 'percentage', value: 4, unit: '%' }],
+            },
           ],
-        },
-        {
-          type: 'branch',
-          id: 'borderStyle',
-          children: [{ type: 'leaf', id: 'keyword', value: 'dashed' }],
         },
       ],
     });

@@ -1,30 +1,29 @@
 /* eslint-disable no-use-before-define */
-import type { RangeString } from './util';
+import type { RangeString, SpeciallyFormattedString } from './util';
 
 export type StaticPrimitiveToken = 'length' | 'percentage' | 'integer' | 'color' | 'image';
 
 export type LimitedLengthToken = RangeString<'length'>;
 
-export type DynamicPrimitiveToken = LimitedLengthToken;
+export type KeywordToken = SpeciallyFormattedString<'keyword', string[]>;
+
+export type DynamicPrimitiveToken = LimitedLengthToken | KeywordToken;
 
 export type PrimitiveToken = StaticPrimitiveToken | DynamicPrimitiveToken;
 
-export type AtomicDefinition = KeywordDefinition | PrimitiveTokenDefinition;
-export type RecursiveDefinition = SequenceDefinition | ChoiceDefinition | RepetitionDefinition;
+export type AtomicDefinition = PrimitiveTokenDefinition;
+export type RecursiveDefinition =
+  | UnorderedDefinition
+  | SequenceDefinition
+  | ChoiceDefinition
+  | RepetitionDefinition
+  | LabelDefinition;
 
 export type RepetitionType = RangeString<'repetition'>;
 
 /**
- * keyword definition
- */
-export type KeywordDefinition = {
-  type: 'keyword';
-  value: string;
-  id?: string;
-};
-
-/**
  * primitive definition
+ * shorthand of LabelDefinition if id is specified
  */
 export type PrimitiveTokenDefinition = {
   type: 'primitive';
@@ -73,13 +72,24 @@ export interface RepetitionDefinition {
 }
 
 /**
+ * label definition
+ * label: A
+ * (for naming a rule, no semantic meaning by itself)
+ */
+export interface LabelDefinition {
+  type: 'label';
+  rule: GrammarRule;
+  id: string;
+}
+
+/**
  * grammar rule
  * keyword | type | sequence | unordered | choice | repetition
  */
 export type GrammarRule =
-  | KeywordDefinition
   | PrimitiveTokenDefinition
   | SequenceDefinition
   | UnorderedDefinition
   | ChoiceDefinition
-  | RepetitionDefinition;
+  | RepetitionDefinition
+  | LabelDefinition;
