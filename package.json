@@ -46,5 +46,13 @@
   },
   "volta": {
     "node": "22.15.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./build/types/index.d.ts",
+      "require": "./build/commonjs/index.js",
+      "import": "./build/es/index.js"
+    },
+    "./package.json": "./package.json"
   }
 }
